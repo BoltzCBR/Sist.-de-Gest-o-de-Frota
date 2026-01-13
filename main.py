@@ -7,135 +7,168 @@ from utilitarios import log_operacao
 
 class Frota:
     def __init__(self):
+        # Base de dados em memória (lista de objetos da classe Veiculo)
         self.lista_veiculos = []
 
-    @log_operacao 
+    @log_operacao # Aplicação do decorador para monitorizar registos
     def adicionar_veiculo(self, veiculo_objeto):
         self.lista_veiculos.append(veiculo_objeto)
 
     def exportar_para_txt(self): 
+        # encoding="utf-8" é vital para suportar símbolos como o '€' no Windows
         with open("frota_final.txt", "w", encoding="utf-8") as arquivo:
             for veiculo in self.lista_veiculos:
                 arquivo.write(str(veiculo) + "\n")
-        return "Inventário exportado com sucesso para 'frota_final.txt'!"
+        return "Inventário exportado com sucesso!"
 
 class Interface(QMainWindow):
     def __init__(self):
         super().__init__()
         self.frota_dados = Frota()
         self.setWindowTitle("Gestor de Frota Pro")
-        self.setFixedSize(400, 550)
+        self.setFixedSize(400, 620)
         
-        # Estilo para visibilidade (Letra preta no input, branca nos avisos)
+        # QSS (Qt Style Sheets): Estilização da interface
         self.setStyleSheet("""
             QMainWindow { background-color: #f5f5f7; }
-            QMessageBox { background-color: #2b2b2b; }
-            QMessageBox QLabel { color: #ffffff; font-size: 14px; }
-            QMessageBox QPushButton { background-color: #0071e3; color: white; min-width: 70px; padding: 5px; }
             QLabel { font-weight: bold; color: #1d1d1f; font-size: 13px; margin-top: 5px; }
-            QLineEdit { padding: 10px; border: 1px solid #d2d2d7; border-radius: 8px; background-color: white; color: #000000; font-size: 14px; }
-            QPushButton { background-color: #0071e3; color: white; border-radius: 10px; padding: 12px; font-weight: bold; font-size: 13px; margin-top: 5px; }
+            QLineEdit { 
+                padding: 10px; border: 1px solid #d2d2d7; border-radius: 8px; 
+                background-color: #ffffff; color: #000000; font-size: 14px; 
+            }
+            QPushButton { 
+                background-color: #0071e3; color: white; border-radius: 10px; 
+                padding: 12px; font-weight: bold; border: none; 
+            }
             QPushButton:hover { background-color: #0077ed; }
             QPushButton#btn_ver { background-color: #86868b; }
             QPushButton#btn_save { background-color: #34c759; }
+            QPushButton#btn_filter { background-color: #f59e0b; }
+            
+            /* Garante que os pop-ups de aviso sejam legíveis (Fundo branco, letra preta) */
+            QMessageBox { background-color: #ffffff; }
+            QMessageBox QLabel { color: #000000; }
         """)
 
+        # Configuração do Layout principal
         container_principal = QWidget()
         self.setCentralWidget(container_principal)
         layout_vertical = QVBoxLayout(container_principal)
 
+        # Título
         titulo_app = QLabel("SISTEMA DE GESTÃO DE FROTA")
         titulo_app.setStyleSheet("font-size: 18px; color: #0071e3; margin-bottom: 10px;")
         titulo_app.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout_vertical.addWidget(titulo_app)
 
+        # Campos de entrada para registo
         layout_vertical.addWidget(QLabel("Marca do Veículo:"))
         self.entrada_marca = QLineEdit()
-        self.entrada_marca.setPlaceholderText("Ex: Ferrari, BMW, Toyota...")
         layout_vertical.addWidget(self.entrada_marca)
 
         layout_vertical.addWidget(QLabel("Preço (€):"))
         self.entrada_preco = QLineEdit()
-        self.entrada_preco.setPlaceholderText("Ex: 50000")
         layout_vertical.addWidget(self.entrada_preco)
 
-        layout_vertical.addSpacing(20)
-
-        # Botões
         self.botao_add = QPushButton("REGISTAR VEÍCULO")
+        layout_vertical.addWidget(self.botao_add)
+
+        layout_vertical.addSpacing(20)
+        
+        # Campo de Pesquisa Dinâmica
+        layout_vertical.addWidget(QLabel("Pesquisar Marca (Filtro):"))
+        self.entrada_filtro = QLineEdit()
+        self.entrada_filtro.setPlaceholderText("Ex: Escreva Toyota ou BMW...")
+        layout_vertical.addWidget(self.entrada_filtro)
+
+        self.botao_find = QPushButton("FILTRAR VEÍCULOS")
+        self.botao_find.setObjectName("btn_filter")
+        layout_vertical.addWidget(self.botao_find)
+
+        layout_vertical.addSpacing(10)
+
+        # Botões de visualização e sistema
         self.botao_ver = QPushButton("VER FROTA COMPLETA")
         self.botao_ver.setObjectName("btn_ver") 
+        layout_vertical.addWidget(self.botao_ver)
+        
         self.botao_desc = QPushButton("APLICAR DESCONTO 10% (LAMBDA)")
-        self.botao_find = QPushButton("FILTRAR TOYOTAS (COMPREENSÃO)")
+        layout_vertical.addWidget(self.botao_desc)
+        
         self.botao_save = QPushButton("EXPORTAR INVENTÁRIO (.TXT)")
         self.botao_save.setObjectName("btn_save") 
+        layout_vertical.addWidget(self.botao_save)
 
-        for botao in [self.botao_add, self.botao_ver, self.botao_desc, self.botao_find, self.botao_save]:
-            layout_vertical.addWidget(botao)
-
-        # Conectar Eventos
+        # Conectar os cliques dos botões aos métodos (Funções)
         self.botao_add.clicked.connect(self.metodo_adicionar)
         self.botao_ver.clicked.connect(self.metodo_mostrar_tudo)
         self.botao_desc.clicked.connect(self.metodo_aplicar_lambda)
-        self.botao_find.clicked.connect(self.metodo_filtrar_toyotas)
+        self.botao_find.clicked.connect(self.metodo_filtrar_dinamico)
         self.botao_save.clicked.connect(self.metodo_exportar_ficheiro)
 
     def metodo_adicionar(self):
-        marca_texto = self.entrada_marca.text()
-        preco_texto = self.entrada_preco.text()
+        marca = self.entrada_marca.text().strip()
+        preco = self.entrada_preco.text().strip()
         
-        if marca_texto and preco_texto:
+        if marca and preco:
             try:
-                novo_veiculo = Veiculo(marca_texto, float(preco_texto))
-                self.frota_dados.adicionar_veiculo(novo_veiculo)
-                QMessageBox.information(self, "Sucesso", f"O veículo {marca_texto} foi guardado!")
+                # Tentamos converter o preço para float. Se falhar, vai para o 'except'
+                self.frota_dados.adicionar_veiculo(Veiculo(marca, float(preco)))
+                QMessageBox.information(self, "Sucesso", f"O veículo {marca} foi guardado!")
                 self.entrada_marca.clear()
                 self.entrada_preco.clear()
             except ValueError:
-                QMessageBox.critical(self, "Erro", "Introduza um valor numérico no preço!")
+                QMessageBox.critical(self, "Erro", "O preço tem de ser um número!")
         else:
             QMessageBox.warning(self, "Aviso", "Preencha todos os campos!")
 
     def metodo_mostrar_tudo(self):
         if not self.frota_dados.lista_veiculos:
-            QMessageBox.information(self, "Frota", "A lista está vazia de momento.")
+            QMessageBox.information(self, "Frota", "A lista está vazia.")
             return
-        # Transforma a lista de objetos numa string gigante para exibir
-        texto_completo = "\n".join([str(item) for item in self.frota_dados.lista_veiculos])
-        QMessageBox.information(self, "Frota Completa", texto_completo)
+        # Transforma a lista de objetos numa única string para exibição
+        res = "\n".join([str(v) for v in self.frota_dados.lista_veiculos])
+        QMessageBox.information(self, "Frota Completa", res)
 
     def metodo_aplicar_lambda(self):
-        # Requisito 4: Lambda
+        """
+        Requisito: Expressão Lambda
+        Usa uma função anónima para calcular o desconto de 10%.
+        """
         funcao_desconto = lambda valor: valor * 0.90
-        contagem_aplicados = 0
-        
-        for veiculo in self.frota_dados.lista_veiculos:
-            if not veiculo.ja_tem_desconto:
-                veiculo.preco = funcao_desconto(veiculo.preco)
-                veiculo.ja_tem_desconto = True
-                contagem_aplicados += 1
-        
-        if contagem_aplicados > 0:
-            QMessageBox.information(self, "Lambda", f"Desconto aplicado a {contagem_aplicados} novos veículos!")
-        else:
-            QMessageBox.warning(self, "Aviso", "Todos os veículos na lista já têm o desconto aplicado.")
+        count = 0
+        for v in self.frota_dados.lista_veiculos:
+            if not v.ja_tem_desconto:
+                v.preco = funcao_desconto(v.preco)
+                v.ja_tem_desconto = True
+                count += 1
+        QMessageBox.information(self, "Lambda", f"Desconto aplicado a {count} veículos novos.")
 
-    def metodo_filtrar_toyotas(self):
-        # Requisito 5: List Comprehension
-        lista_filtrada = [v for v in self.frota_dados.lista_veiculos if "toyota" in v.marca.lower()]
+    def metodo_filtrar_dinamico(self):
+        """
+        Requisito: List Comprehension
+        Cria uma sublista baseada no termo pesquisado.
+        """
+        termo = self.entrada_filtro.text().strip().lower()
+        if not termo:
+            QMessageBox.warning(self, "Aviso", "Escreva o nome de uma marca para filtrar!")
+            return
         
-        if not lista_filtrada:
-            QMessageBox.information(self, "Pesquisa", "Não encontrámos nenhum Toyota.")
+        # Filtra a lista principal: mantém o veículo 'v' se o 'termo' estiver contido na 'marca'
+        filtrados = [v for v in self.frota_dados.lista_veiculos if termo in v.marca.lower()]
+        
+        if filtrados:
+            res = "\n".join([str(v) for v in filtrados])
+            QMessageBox.information(self, f"Resultados para '{termo}'", res)
         else:
-            resultado_texto = "\n".join([str(t) for t in lista_filtrada])
-            QMessageBox.information(self, "Filtro Toyota", resultado_texto)
+            QMessageBox.information(self, "Filtro", "Nenhum veículo corresponde à pesquisa.")
 
     def metodo_exportar_ficheiro(self):
-        mensagem_resultado = self.frota_dados.exportar_para_txt()
-        QMessageBox.information(self, "Exportação", mensagem_resultado)
+        msg = self.frota_dados.exportar_para_txt()
+        QMessageBox.information(self, "Exportar", msg)
 
 if __name__ == "__main__":
-    aplicacao = QApplication(sys.argv)
-    janela_app = Interface()
-    janela_app.show()
-    sys.exit(aplicacao.exec())
+    app = QApplication(sys.argv)
+    win = Interface()
+    win.show()
+    sys.exit(app.exec())

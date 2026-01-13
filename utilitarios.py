@@ -1,19 +1,19 @@
 from datetime import datetime
 
-# Requisito 2: Decorador para registo de operações
+# Requisito: Decorador
 def log_operacao(funcao_original):
     """
-    Este decorador regista a data, hora e o nome de qualquer 
-    função que seja executada no programa.
+    Um decorador 'embrulha' uma função existente para adicionar lógica extra.
+    Aqui, ele regista automaticamente quando qualquer método é chamado.
     """
-    def embrulho_da_funcao(*argumentos_posicionais, **argumentos_nomeados):
-        # Obtém o momento exato da execução
+    def embrulho_da_funcao(*args, **kwargs):
+        # Captura a hora atual formatada
         agora = datetime.now().strftime("%H:%M:%S")
         
-        # Imprime no terminal o nome da função que foi disparada
-        print(f" LOG [{agora}] -> A executar: {funcao_original.__name__}")
+        # funcao_original.__name__ extrai o nome do método (ex: adicionar_veiculo)
+        print(f" LOG [{agora}] -> A executar método: {funcao_original.__name__}")
         
-        # Executa a função propriamente dita com os seus dados
-        return funcao_original(*argumentos_posicionais, **argumentos_nomeados)
+        # Retorna a execução da função original com os seus argumentos
+        return funcao_original(*args, **kwargs)
     
     return embrulho_da_funcao
